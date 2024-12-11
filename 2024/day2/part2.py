@@ -16,7 +16,7 @@ def is_safe_dampened(report:list[int]) -> bool:
         report_pop = report[:i] + report[i+1:]
         if is_safe(report_pop):
             return True
-        return False
+    return False
 
 def main():
     with open("in.txt", "r", encoding="utf-8") as f:
