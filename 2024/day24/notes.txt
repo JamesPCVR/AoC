@@ -1,0 +1,17 @@
+(278) x11 AND y11 -> qnw >>> qff
+(228) x11 XOR y11 -> qff >>> qnw
+
+(216) x16 AND y16 -> z16 >>> pbv
+(299) x16 XOR y16 -> dfn (correct)
+(171) dfn XOR qcr -> pbv >>> z16
+
+(180) wdr OR jcd -> z23 >>> qqp
+(272) x23 AND y23 -> wdr (correct)
+(144) x23 XOR y23 -> bcd (correct)
+(125) cts XOR bcd -> qqp >>> z23
+
+(128) jdd AND rbm -> z36 >>> fbq
+(286) y36 XOR x36 -> rbm (correct)
+(274) x36 AND y36 -> rpw (correct)
+(221) rpw OR fbq
+(233) jdd XOR rbm -> fbq >>> z36

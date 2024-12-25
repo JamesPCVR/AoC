@@ -32,14 +32,11 @@ def correct_rule(rule:list[int], pages:list[int]) -> list[int]:
     pages.insert(i2, val)
 
 def main():
-    with open("inrules.txt", "r", encoding="utf-8") as f:
-        content = f.read().split("\n")
-    rules = [[int(r) for r in line.split("|")] for line in content]
-    rules.sort()
-
     with open("in.txt", "r", encoding="utf-8") as f:
-        content = f.read().split("\n")
-    manuals = [[int(p) for p in line.split(",")] for line in content]
+        rules, manuals = f.read().split("\n\n")
+    rules = [[int(r) for r in line.split("|")] for line in rules.split("\n")]
+    rules.sort()
+    manuals = [[int(p) for p in line.split(",")] for line in manuals.split("\n")]
 
     middle_total = 0
     for pages in manuals:
