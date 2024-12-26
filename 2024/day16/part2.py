@@ -1,11 +1,9 @@
-from copy import deepcopy
-
 class Branch:
     def __init__(
             self,
             start:tuple[int,int],
             direction:tuple[int,int],
-            visited:set[tuple[int,int]],
+            visited:list[int],
             moves:int,
             turns:int
         ) -> None:
@@ -14,19 +12,30 @@ class Branch:
         self.position = self.start
         self.moves = moves
         self.turns = turns
-        self.visited = deepcopy(visited)
+        self.visited = visited.copy()
 
-    def visit(self, coord:tuple[int,int]) -> None:
+    def visit(self, coord:list[int,int]) -> None:
         """visit a node"""
-        self.visited.add(coord)
+        self.visited.extend(coord)
 
-def add_coords(*a:tuple[int,int]) -> tuple[int,int]:
+    def has_visited(self, coord:list[int,int]) -> bool:
+        """check if node has been visited"""
+        for pair in zip(self.visited[::2], self.visited[1::2]):
+            if pair == coord:
+                return True
+        return False
+
+    def visited_pairs(self) -> set[tuple[int,int]]:
+        """get all visited coords as a set of tuples"""
+        return set(zip(self.visited[::2], self.visited[1::2]))
+
+def add_coords(a:list[int,int], b:list[int,int]) -> list[int,int]:
     """add x and y values of coordinates."""
-    x = sum(xy[0] for xy in a)
-    y = sum(xy[1] for xy in a)
+    x = a[0] + b[0]
+    y = a[1] + b[1]
     return x, y
 
-def maze_fetch(maze:list[str], pos:tuple[int,int]) -> str:
+def maze_fetch(maze:list[str], pos:list[int,int]) -> str:
     """get item from maze coordinate"""
     x, y = pos
     return maze[y][x]
@@ -35,14 +44,11 @@ def breadth_first_linear_search(
         maze:list[str],
         start:tuple[int,int],
         end:tuple[int,int],
-    ) -> tuple[int,int]:
+    ) -> set[tuple[int,int]]:
     """solve maze using minimal turns."""
     directions = [(1, 0), (0, -1), (-1, 0), (0, 1)]
 
-    start_set = set()
-    start_set.add(start)
-
-    queue = [Branch(start, directions[0], start_set, 0, 0)]
+    queue = [Branch(start, directions[0], list(start), 0, 0)]
 
     ideal_branches:set[Branch] = set()
     reached_end = False
@@ -68,7 +74,7 @@ def breadth_first_linear_search(
                     lr_check = add_coords(branch.position, lr)
                     lr_item = maze_fetch(maze, lr_check)
                     if lr_item != "#":
-                        if lr_check in branch.visited:# or lr_check in queued:
+                        if branch.has_visited(lr_check):
                             continue
                         new_branch_start = add_coords(lr_check, lr)
                         new_branch_moves = branch.moves + 2
@@ -94,18 +100,26 @@ def breadth_first_linear_search(
                 break
 
             # move forward 2 spaces
-            branch.visited.add(add_coords(branch.position, branch.direction))
-            branch.position = add_coords(branch.position, branch.direction, branch.direction)
-            branch.visited.add(branch.position)
+            branch.position = add_coords(branch.position, branch.direction)
+            branch.visit(branch.position)
+            branch.position = add_coords(branch.position, branch.direction)
+            branch.visit(branch.position)
             branch.moves += 2
+
+            # check if reached the end
             if branch.position == end:
                 ideal_branches.add(branch)
                 reached_end = True
 
+    lengths = [branch.moves for branch in ideal_branches]
+    min_length = min(lengths)
+
     ideal_spaces = set()
     for ideal_branch in ideal_branches:
-        print(ideal_branch.visited)
-        for visit in ideal_branch.visited:
+        if ideal_branch.moves > min_length:
+            continue
+        #print(ideal_branch.visited_pairs())
+        for visit in ideal_branch.visited_pairs():
             ideal_spaces.add(visit)
     return ideal_spaces
 
