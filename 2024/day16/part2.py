@@ -1,33 +1,21 @@
-class Branch:
+class Node:
     def __init__(
             self,
             start:tuple[int,int],
             direction:tuple[int,int],
-            visited:list[int],
-            moves:int,
-            turns:int
+            score:int
         ) -> None:
         self.start = start
         self.direction = direction
-        self.position = self.start
-        self.moves = moves
-        self.turns = turns
-        self.visited = visited.copy()
+        self.score = score
 
-    def visit(self, coord:list[int,int]) -> None:
-        """visit a node"""
-        self.visited.extend(coord)
+    def left(self) -> tuple[int,int]:
+        return directions[(directions.index(self.direction) + 1) % 4]
 
-    def has_visited(self, coord:list[int,int]) -> bool:
-        """check if node has been visited"""
-        for pair in zip(self.visited[::2], self.visited[1::2]):
-            if pair == coord:
-                return True
-        return False
+    def right(self) -> tuple[int,int]:
+        return directions[(directions.index(self.direction) - 1) % 4]
 
-    def visited_pairs(self) -> set[tuple[int,int]]:
-        """get all visited coords as a set of tuples"""
-        return set(zip(self.visited[::2], self.visited[1::2]))
+directions = [(1, 0), (0, -1), (-1, 0), (0, 1)]
 
 def add_coords(a:list[int,int], b:list[int,int]) -> list[int,int]:
     """add x and y values of coordinates."""
@@ -40,111 +28,86 @@ def maze_fetch(maze:list[str], pos:list[int,int]) -> str:
     x, y = pos
     return maze[y][x]
 
-def breadth_first_linear_search(
+def breadth_first_search(
         maze:list[str],
-        start:tuple[int,int],
-        end:tuple[int,int],
-    ) -> set[tuple[int,int]]:
+        start:tuple[int,int]
+    ) -> list[list[int]]:
     """solve maze using minimal turns."""
-    directions = [(1, 0), (0, -1), (-1, 0), (0, 1)]
+    scores = [[-1]*len(maze[0]) for _ in maze]
+    scores[start[1]][start[0]] = 0
 
-    queue = [Branch(start, directions[0], list(start), 0, 0)]
+    queue = [Node(start, directions[0], 0)]
 
-    ideal_branches:set[Branch] = set()
-    reached_end = False
+    while len(queue) > 0:
+        current_node = queue.pop()
 
-    while True:
-        # could not solve
-        if len(queue) == 0:
-            break
+        options = [
+            (current_node.left(), current_node.score + 1001),
+            (current_node.direction, current_node.score + 1),
+            (current_node.right(), current_node.score + 1001)
+        ]
 
-        # get next branch from queue
-        branch = queue.pop()
+        for check_dir, check_score in options:
+            check_pos = add_coords(current_node.start, check_dir)
+            space = maze_fetch(maze, check_pos)
 
-        # find left and right offsets
-        dir_idx = directions.index(branch.direction)
-        left_right = [directions[(dir_idx + 1) % 4], directions[(dir_idx - 1) % 4]]
+            if space == "#":
+                continue
+            if check_pos == start:
+                continue
 
-        # keep moving forward until hit wall
-        while True:
-            # if the end if found, do not branch
-            if not reached_end:
-                # check left and right for options
-                for lr in left_right:
-                    lr_check = add_coords(branch.position, lr)
-                    lr_item = maze_fetch(maze, lr_check)
-                    if lr_item != "#":
-                        if branch.has_visited(lr_check):
-                            continue
-                        new_branch_start = add_coords(lr_check, lr)
-                        new_branch_moves = branch.moves + 2
-                        new_branch_turns = branch.turns + 1
+            if maze_fetch(scores, check_pos) == -1 or check_score < maze_fetch(scores, check_pos):
+                scores[check_pos[1]][check_pos[0]] = check_score
+                queue.insert(0, Node(check_pos, check_dir, check_score))
 
-                        # create a new branch to the side
-                        new_branch = Branch(new_branch_start, lr, branch.visited, new_branch_moves, new_branch_turns)
-                        new_branch.visit(lr_check)
-                        new_branch.visit(new_branch_start)
+    return scores
 
-                        # if the branch is the end, no need to add it to the queue
-                        if new_branch_start == end:
-                            ideal_branches.add(new_branch)
-                            reached_end = True
-                        else:
-                            # add new branch to back of queue
-                            queue.insert(0, new_branch)
-
-            # check able to move forward
-            ahead_start = add_coords(branch.position, branch.direction)
-            ahead_item = maze_fetch(maze, ahead_start)
-            if ahead_item == "#":
-                break
-
-            # move forward 2 spaces
-            branch.position = add_coords(branch.position, branch.direction)
-            branch.visit(branch.position)
-            branch.position = add_coords(branch.position, branch.direction)
-            branch.visit(branch.position)
-            branch.moves += 2
-
-            # check if reached the end
-            if branch.position == end:
-                ideal_branches.add(branch)
-                reached_end = True
-
-    lengths = [branch.moves for branch in ideal_branches]
-    min_length = min(lengths)
-
+def reverse_breadth_first_search(
+        scores:list[list[int]],
+        end:tuple[int,int]
+    ) -> set[tuple[int,int]]:
+    """find all spaces on ideal path"""
     ideal_spaces = set()
-    for ideal_branch in ideal_branches:
-        if ideal_branch.moves > min_length:
-            continue
-        #print(ideal_branch.visited_pairs())
-        for visit in ideal_branch.visited_pairs():
-            ideal_spaces.add(visit)
+    ideal_spaces.add(end)
+    queue = [
+        Node(end, directions[2], maze_fetch(scores, end)),
+        Node(end, directions[3], maze_fetch(scores, end))
+    ]
+    while len(queue) > 0:
+        current_node = queue.pop()
+
+        options = [
+            (current_node.left(), current_node.score - 1001),
+            (current_node.direction, current_node.score - 1),
+            (current_node.right(), current_node.score - 1001)
+        ]
+
+        for check_dir, check_score in options:
+            check_pos = add_coords(current_node.start, check_dir)
+            space = maze_fetch(scores, check_pos)
+
+            if space == -1:
+                continue
+            if check_pos in ideal_spaces:
+                continue
+            if maze_fetch(scores, check_pos) in [check_score-1000, check_score]:
+                queue.append(Node(check_pos, check_dir, check_score))
+                ideal_spaces.add(check_pos)
+
     return ideal_spaces
 
-def print_maze(maze:list[str], visited:set[tuple[int,int]]) -> None:
-    maze_list = [list(line) for line in maze]
-    for x, y in visited:
-        maze_list[y][x] = "O"
-    maze_print = ["".join(line) for line in maze_list]
-    print(*maze_print, sep="\n")
-
 def main():
-    with open("test.txt", "r", encoding="utf-8") as f:
+    with open("in.txt", "r", encoding="utf-8") as f:
         maze = f.read().split("\n")
 
     start = (1, len(maze)-2)
     end = (len(maze[0])-2, 1)
 
-    on_ideal_path = breadth_first_linear_search(maze, start, end)
+    scores = breadth_first_search(maze, start)
+    on_ideal_path = reverse_breadth_first_search(scores, end)
 
-    print_maze(maze, on_ideal_path)
-
-    print("\non ideal path:")
-    print(on_ideal_path)
     print(len(on_ideal_path))
 
 if __name__ == "__main__":
     main()
-    #
+    # 483
